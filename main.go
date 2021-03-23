@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	verbose  = false
 	download = false
+	verbose  = false
 
 	prog = &cobra.Command{
 		Use:   "email-to-html [-d] [-v] *.eml",
