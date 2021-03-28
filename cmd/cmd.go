@@ -188,7 +188,7 @@ func (c *EmailToHTML) extractAttachments(mail *email.Email) (attachments map[str
 			log.Printf("extract %s", a.Filename)
 		}
 
-		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%d#%s", i, a.Filename))
+		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%d.%s", i, a.Filename))
 		err = ioutil.WriteFile(saveFile, a.Content, 0777)
 		if err != nil {
 			log.Printf("cannot extact image %s", a.Filename)
