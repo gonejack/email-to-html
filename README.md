@@ -2,6 +2,10 @@
 
 Command line tool for converting email to html.
 
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/gonejack/email-to-html)
+![Build](https://github.com/gonejack/email-to-html/actions/workflows/go.yml/badge.svg)
+[![GitHub license](https://img.shields.io/github/license/gonejack/email-to-html.svg?color=blue)](LICENSE)
+
 ### Install
 ```shell
 > go get github.com/gonejack/email-to-html
