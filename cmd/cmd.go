@@ -22,7 +22,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dustin/go-humanize"
 	"github.com/gabriel-vasile/mimetype"
-	"github.com/jordan-wright/email"
+	"github.com/gonejack/email"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
@@ -40,10 +40,13 @@ type EmailToHTML struct {
 
 func (c *EmailToHTML) Execute(emails []string) error {
 	if len(emails) == 0 {
+		emails, _ = filepath.Glob("*.eml")
+	}
+	if len(emails) == 0 {
 		return errors.New("no eml given")
 	}
 
-	err := c.mkdirs()
+	err := c.mkdir()
 	if err != nil {
 		return err
 	}
@@ -56,7 +59,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 			return err
 		}
 
-		attachments, err := c.extractAttachments(mail)
+		attachments, err := c.extractAttachment(mail)
 		if err != nil {
 			return fmt.Errorf("cannot extract attachments %s", err)
 		}
@@ -104,7 +107,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 	return nil
 }
 
-func (c *EmailToHTML) mkdirs() error {
+func (c *EmailToHTML) mkdir() error {
 	err := os.MkdirAll(c.ImagesDir, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot make images dir %s", err)
@@ -181,7 +184,7 @@ func (c *EmailToHTML) downloadImages(doc *goquery.Document) map[string]string {
 
 	return downloads
 }
-func (c *EmailToHTML) extractAttachments(mail *email.Email) (attachments map[string]string, err error) {
+func (c *EmailToHTML) extractAttachment(mail *email.Email) (attachments map[string]string, err error) {
 	attachments = make(map[string]string)
 	for i, a := range mail.Attachments {
 		if c.Verbose {
