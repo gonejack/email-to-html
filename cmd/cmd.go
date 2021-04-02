@@ -59,7 +59,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 			return err
 		}
 
-		attachments, err := c.extractAttachment(mail)
+		attachments, err := c.extractAttachment(eml, mail)
 		if err != nil {
 			return fmt.Errorf("cannot extract attachments %s", err)
 		}
@@ -184,14 +184,14 @@ func (c *EmailToHTML) downloadImages(doc *goquery.Document) map[string]string {
 
 	return downloads
 }
-func (c *EmailToHTML) extractAttachment(mail *email.Email) (attachments map[string]string, err error) {
+func (c *EmailToHTML) extractAttachment(eml string, mail *email.Email) (attachments map[string]string, err error) {
 	attachments = make(map[string]string)
 	for i, a := range mail.Attachments {
 		if c.Verbose {
 			log.Printf("extract %s", a.Filename)
 		}
 
-		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%d.%s", i, a.Filename))
+		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, a.Filename))
 		err = ioutil.WriteFile(saveFile, a.Content, 0777)
 		if err != nil {
 			log.Printf("cannot extact image %s", a.Filename)
