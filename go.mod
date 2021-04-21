@@ -7,7 +7,8 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gabriel-vasile/mimetype v1.1.2
 	github.com/gonejack/email v1.0.2
-	github.com/schollz/progressbar/v3 v3.7.4
+	github.com/gonejack/get v1.0.0
+	github.com/schollz/progressbar/v3 v3.8.0
 	github.com/spf13/cobra v1.1.3
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )

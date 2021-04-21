@@ -2,17 +2,14 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"html"
-	"io"
 	"io/ioutil"
 	"log"
 	"mime"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,17 +17,12 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/dustin/go-humanize"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gonejack/email"
-	"github.com/schollz/progressbar/v3"
-	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
+	"github.com/gonejack/get"
 )
 
 type EmailToHTML struct {
-	client http.Client
-
 	ImagesDir      string
 	AttachmentsDir string
 
@@ -70,16 +62,16 @@ func (c *EmailToHTML) Execute(emails []string) error {
 		}
 		document = c.cleanDoc(document)
 
-		var downloads map[string]string
+		var saveImages map[string]string
 		if c.Download {
-			downloads = c.downloadImages(document)
+			saveImages = c.saveImages(document)
 		}
 
 		document.Find("img").Each(func(i int, img *goquery.Selection) {
-			c.changeRef(img, attachments, downloads)
+			c.changeRef(img, attachments, saveImages)
 		})
 
-		title := c.mailTitle(mail)
+		title := c.renderTitle(mail)
 		if document.Find("title").Length() == 0 {
 			document.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(title)))
 		}
@@ -132,9 +124,10 @@ func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	return mail, nil
 }
 
-func (c *EmailToHTML) downloadImages(doc *goquery.Document) map[string]string {
+func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
 	downloads := make(map[string]string)
-	downloadLinks := make([]string, 0)
+
+	var refs, paths []string
 	doc.Find("img").Each(func(i int, img *goquery.Selection) {
 		src, _ := img.Attr("src")
 		if !strings.HasPrefix(src, "http") {
@@ -153,34 +146,17 @@ func (c *EmailToHTML) downloadImages(doc *goquery.Document) map[string]string {
 		}
 		localFile = filepath.Join(c.ImagesDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
+		refs = append(refs, src)
+		paths = append(paths, localFile)
 		downloads[src] = localFile
-		downloadLinks = append(downloadLinks, src)
 	})
 
-	var batch = semaphore.NewWeighted(3)
-	var group errgroup.Group
-
-	for i := range downloadLinks {
-		_ = batch.Acquire(context.TODO(), 1)
-
-		src := downloadLinks[i]
-		group.Go(func() error {
-			defer batch.Release(1)
-
-			if c.Verbose {
-				log.Printf("fetch %s", src)
-			}
-
-			err := c.download(downloads[src], src)
-			if err != nil {
-				log.Printf("download %s fail: %s", src, err)
-			}
-
-			return nil
-		})
+	getter := get.DefaultGetter()
+	getter.Verbose = c.Verbose
+	eRefs, errs := getter.BatchInOrder(refs, paths, 3, time.Minute*2)
+	for i := range eRefs {
+		log.Printf("download %s fail: %s", eRefs[i], errs[i])
 	}
-
-	_ = group.Wait()
 
 	return downloads
 }
@@ -253,69 +229,8 @@ func (c *EmailToHTML) changeRef(img *goquery.Selection, attachments, downloads m
 		log.Printf("unsupported image reference[src=%s]", src)
 	}
 }
-func (c *EmailToHTML) download(path string, src string) (err error) {
-	timeout, cancel := context.WithTimeout(context.TODO(), time.Minute*2)
-	defer cancel()
 
-	info, err := os.Stat(path)
-	if err == nil {
-		headReq, headErr := http.NewRequestWithContext(timeout, http.MethodHead, src, nil)
-		if headErr != nil {
-			return headErr
-		}
-		resp, headErr := c.client.Do(headReq)
-		if headErr == nil && info.Size() == resp.ContentLength {
-			return // skip download
-		}
-	}
-
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	request, err := http.NewRequestWithContext(timeout, http.MethodGet, src, nil)
-	if err != nil {
-		return
-	}
-	response, err := c.client.Do(request)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-
-	var written int64
-	if c.Verbose {
-		bar := progressbar.NewOptions64(response.ContentLength,
-			progressbar.OptionSetTheme(progressbar.Theme{Saucer: "=", SaucerPadding: ".", BarStart: "|", BarEnd: "|"}),
-			progressbar.OptionSetWidth(10),
-			progressbar.OptionSpinnerType(11),
-			progressbar.OptionShowBytes(true),
-			progressbar.OptionShowCount(),
-			progressbar.OptionSetPredictTime(false),
-			progressbar.OptionSetDescription(filepath.Base(src)),
-			progressbar.OptionSetRenderBlankState(true),
-			progressbar.OptionClearOnFinish(),
-		)
-		defer bar.Clear()
-		written, err = io.Copy(io.MultiWriter(file, bar), response.Body)
-	} else {
-		written, err = io.Copy(file, response.Body)
-	}
-
-	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return fmt.Errorf("response status code %d invalid", response.StatusCode)
-	}
-
-	if err == nil && written < response.ContentLength {
-		err = fmt.Errorf("expected %s but downloaded %s", humanize.Bytes(uint64(response.ContentLength)), humanize.Bytes(uint64(written)))
-	}
-
-	return
-}
-
-func (_ *EmailToHTML) mailTitle(mail *email.Email) string {
+func (_ *EmailToHTML) renderTitle(mail *email.Email) string {
 	title := mail.Subject
 	decoded, err := decodeRFC2047(title)
 	if err == nil {
