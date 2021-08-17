@@ -151,9 +151,7 @@ func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
 		downloads[src] = localFile
 	})
 
-	getter := get.DefaultGetter()
-	getter.Verbose = c.Verbose
-	eRefs, errs := getter.BatchInOrder(refs, paths, 3, time.Minute*2)
+	eRefs, errs := get.BatchInOrder(refs, paths, 3, time.Minute*2)
 	for i := range eRefs {
 		log.Printf("download %s fail: %s", eRefs[i], errs[i])
 	}
