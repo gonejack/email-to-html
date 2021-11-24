@@ -4,8 +4,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/gonejack/email-to-html/cmd"
 	"github.com/spf13/cobra"
+
+	"github.com/gonejack/email-to-html/cmd"
 )
 
 var (
@@ -48,7 +49,7 @@ func init() {
 
 func run(c *cobra.Command, args []string) error {
 	exec := cmd.EmailToHTML{
-		ImagesDir:      "images",
+		MediaDir:       "media",
 		AttachmentsDir: "attachments",
 
 		Download: download,

@@ -23,7 +23,7 @@ import (
 )
 
 type EmailToHTML struct {
-	ImagesDir      string
+	MediaDir       string
 	AttachmentsDir string
 
 	Download bool
@@ -100,11 +100,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 }
 
 func (c *EmailToHTML) mkdir() error {
-	err := os.MkdirAll(c.ImagesDir, 0777)
-	if err != nil {
-		return fmt.Errorf("cannot make images dir %s", err)
-	}
-	err = os.MkdirAll(c.AttachmentsDir, 0777)
+	err := os.MkdirAll(c.AttachmentsDir, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot make attachments dir %s", err)
 	}
@@ -125,10 +121,16 @@ func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 }
 
 func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
+	err := os.MkdirAll(c.MediaDir, 0777)
+	if err != nil {
+		log.Printf("cannot make images dir %s", err)
+		return nil
+	}
+
 	downloads := make(map[string]string)
 	tasks := get.NewDownloadTasks()
 
-	doc.Find("img").Each(func(i int, img *goquery.Selection) {
+	doc.Find("img,video,source").Each(func(i int, img *goquery.Selection) {
 		src, _ := img.Attr("src")
 		if !strings.HasPrefix(src, "http") {
 			return
@@ -144,7 +146,7 @@ func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
 			log.Printf("parse %s fail: %s", src, err)
 			return
 		}
-		localFile = filepath.Join(c.ImagesDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
+		localFile = filepath.Join(c.MediaDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
 		tasks.Add(src, localFile)
 		downloads[src] = localFile
@@ -164,10 +166,10 @@ func (c *EmailToHTML) extractAttachment(eml string, mail *email.Email) (attachme
 			log.Printf("extract %s", a.Filename)
 		}
 
-		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, a.Filename))
+		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, filepath.Base(a.Filename)))
 		err = ioutil.WriteFile(saveFile, a.Content, 0777)
 		if err != nil {
-			log.Printf("cannot extact image %s", a.Filename)
+			log.Printf("cannot extact image %s: %s", a.Filename, err)
 			continue
 		}
 		cid := a.Header.Get("Content-ID")
