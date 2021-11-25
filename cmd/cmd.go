@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"io/ioutil"
 	"log"
 	"mime"
 	"net/url"
@@ -90,7 +89,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 		}
 
 		filename := strings.TrimSuffix(eml, filepath.Ext(eml)) + ".html"
-		err = ioutil.WriteFile(filename, []byte(content), 0766)
+		err = os.WriteFile(filename, []byte(content), 0766)
 		if err != nil {
 			return err
 		}
@@ -167,7 +166,7 @@ func (c *EmailToHTML) extractAttachment(eml string, mail *email.Email) (attachme
 		}
 
 		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, filepath.Base(a.Filename)))
-		err = ioutil.WriteFile(saveFile, a.Content, 0777)
+		err = os.WriteFile(saveFile, a.Content, 0777)
 		if err != nil {
 			log.Printf("cannot extact image %s: %s", a.Filename, err)
 			continue
