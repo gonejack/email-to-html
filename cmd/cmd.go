@@ -55,41 +55,41 @@ func (c *EmailToHTML) Execute(emails []string) error {
 			return fmt.Errorf("cannot extract attachments %s", err)
 		}
 
-		document, err := goquery.NewDocumentFromReader(bytes.NewReader(mail.HTML))
+		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(mail.HTML))
 		if err != nil {
 			return fmt.Errorf("cannot parse HTML: %s", err)
 		}
-		document = c.cleanDoc(document)
+		doc = c.cleanDoc(doc)
 
 		var saveImages map[string]string
 		if c.Download {
-			saveImages = c.saveImages(document)
+			saveImages = c.saveImages(doc)
 		}
 
-		document.Find("img").Each(func(i int, img *goquery.Selection) {
+		doc.Find("img").Each(func(i int, img *goquery.Selection) {
 			c.changeRef(img, attachments, saveImages)
 		})
 
 		title := c.renderTitle(mail)
-		if document.Find("title").Length() == 0 {
-			document.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(title)))
+		if doc.Find("title").Length() == 0 {
+			doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(title)))
 		}
-		if document.Find("title").Text() == "" {
-			document.Find("title").SetText(title)
+		if doc.Find("title").Text() == "" {
+			doc.Find("title").SetText(title)
 		}
 
-		_, exist := document.Find("html").Attr("lang")
+		_, exist := doc.Find("html").Attr("lang")
 		if !exist && mail.Headers.Get("Content-Language") != "" {
-			document.Find("html").SetAttr("lang", mail.Headers.Get("Content-Language"))
+			doc.Find("html").SetAttr("lang", mail.Headers.Get("Content-Language"))
 		}
 
-		content, err := document.Html()
+		htm, err := doc.Html()
 		if err != nil {
 			return fmt.Errorf("cannot generate body: %s", err)
 		}
 
 		filename := strings.TrimSuffix(eml, filepath.Ext(eml)) + ".html"
-		err = os.WriteFile(filename, []byte(content), 0766)
+		err = os.WriteFile(filename, []byte(htm), 0766)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,6 @@ func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	}
 	return mail, nil
 }
-
 func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
 	err := os.MkdirAll(c.MediaDir, 0777)
 	if err != nil {
@@ -227,7 +226,6 @@ func (c *EmailToHTML) changeRef(img *goquery.Selection, attachments, downloads m
 		log.Printf("unsupported image reference[src=%s]", src)
 	}
 }
-
 func (_ *EmailToHTML) renderTitle(mail *email.Email) string {
 	title := mail.Subject
 	decoded, err := decodeRFC2047(title)
