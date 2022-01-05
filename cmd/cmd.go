@@ -61,13 +61,13 @@ func (c *EmailToHTML) Execute(emails []string) error {
 		}
 		doc = c.cleanDoc(doc)
 
-		var saveImages map[string]string
+		var saves map[string]string
 		if c.Download {
-			saveImages = c.saveImages(doc)
+			saves = c.downloadMedia(doc)
 		}
 
-		doc.Find("img").Each(func(i int, img *goquery.Selection) {
-			c.changeRef(img, attachments, saveImages)
+		doc.Find("img,video,source").Each(func(i int, e *goquery.Selection) {
+			c.changeRef(e, attachments, saves)
 		})
 
 		title := c.renderTitle(mail)
@@ -118,7 +118,7 @@ func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	}
 	return mail, nil
 }
-func (c *EmailToHTML) saveImages(doc *goquery.Document) map[string]string {
+func (c *EmailToHTML) downloadMedia(doc *goquery.Document) map[string]string {
 	err := os.MkdirAll(c.MediaDir, 0777)
 	if err != nil {
 		log.Printf("cannot make images dir %s", err)
