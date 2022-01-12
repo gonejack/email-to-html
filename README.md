@@ -1,6 +1,6 @@
 # email-to-html
 
-Command line tool for converting email to html.
+This command line converts .eml file to .html file
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/gonejack/email-to-html)
 ![Build](https://github.com/gonejack/email-to-html/actions/workflows/go.yml/badge.svg)
@@ -16,13 +16,11 @@ Command line tool for converting email to html.
 > email-to-html *.eml
 ```
 ```
-Command line tool for converting emails to html.
-
-Usage:
-  email-to-html [-d] [-v] *.eml [flags]
-
 Flags:
-  -d, --download   download remote images
-  -v, --verbose    verbose
-  -h, --help       help for email-to-html
+  -h, --help                            Show context-sensitive help.
+      --media-dir="media"
+      --attachment-dir="attachments"
+  -i, --download                        Download remote images
+  -v, --verbose                         Verbose printing.
+      --about                           About.
 ```

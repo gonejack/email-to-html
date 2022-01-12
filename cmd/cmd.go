@@ -16,33 +16,46 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/alecthomas/kong"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gonejack/email"
 	"github.com/gonejack/get"
 )
 
-type EmailToHTML struct {
-	MediaDir       string
-	AttachmentsDir string
+type options struct {
+	MediaDir       string `default:"media" help:"Storage dir of images."`
+	AttachmentDir  string `default:"attachments" help:"Storage dir of attachments."`
+	DownloadRemote bool   `short:"d"  help:"Download remote images."`
+	Verbose        bool   `short:"v" help:"Verbose printing."`
+	About          bool   `help:"About."`
 
-	Download bool
-	Verbose  bool
+	EML []string `arg:"" optional:"" help:"list of .eml files"`
 }
 
-func (c *EmailToHTML) Execute(emails []string) error {
-	if len(emails) == 0 {
-		emails, _ = filepath.Glob("*.eml")
-	}
-	if len(emails) == 0 {
-		return errors.New("no eml given")
-	}
+type EmailToHTML struct {
+	options
+}
 
-	err := c.mkdir()
-	if err != nil {
-		return err
+func (c *EmailToHTML) Run() (err error) {
+	kong.Parse(&c.options,
+		kong.Name("email-to-html"),
+		kong.Description("This command line converts .eml file to .html file"),
+		kong.UsageOnError(),
+	)
+	if c.About {
+		fmt.Println("Visit https://github.com/gonejack/email-to-html")
+		return
 	}
-
-	for _, eml := range emails {
+	if len(c.EML) == 0 {
+		c.EML, _ = filepath.Glob("*.eml")
+	}
+	if len(c.EML) == 0 {
+		return errors.New("no .eml file given")
+	}
+	return c.run()
+}
+func (c *EmailToHTML) run() (err error) {
+	for _, eml := range c.EML {
 		log.Printf("convert %s", eml)
 
 		mail, err := c.openEmail(eml)
@@ -62,7 +75,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 		doc = c.cleanDoc(doc)
 
 		var saves map[string]string
-		if c.Download {
+		if c.DownloadRemote {
 			saves = c.downloadMedia(doc)
 		}
 
@@ -95,16 +108,7 @@ func (c *EmailToHTML) Execute(emails []string) error {
 		}
 	}
 
-	return nil
-}
-
-func (c *EmailToHTML) mkdir() error {
-	err := os.MkdirAll(c.AttachmentsDir, 0777)
-	if err != nil {
-		return fmt.Errorf("cannot make attachments dir %s", err)
-	}
-
-	return nil
+	return
 }
 func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	file, err := os.Open(eml)
@@ -119,12 +123,6 @@ func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	return mail, nil
 }
 func (c *EmailToHTML) downloadMedia(doc *goquery.Document) map[string]string {
-	err := os.MkdirAll(c.MediaDir, 0777)
-	if err != nil {
-		log.Printf("cannot make images dir %s", err)
-		return nil
-	}
-
 	downloads := make(map[string]string)
 	tasks := get.NewDownloadTasks()
 
@@ -144,6 +142,7 @@ func (c *EmailToHTML) downloadMedia(doc *goquery.Document) map[string]string {
 			log.Printf("parse %s fail: %s", src, err)
 			return
 		}
+		_ = os.MkdirAll(c.MediaDir, 0777)
 		localFile = filepath.Join(c.MediaDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
 		tasks.Add(src, localFile)
@@ -164,7 +163,8 @@ func (c *EmailToHTML) extractAttachment(eml string, mail *email.Email) (attachme
 			log.Printf("extract %s", a.Filename)
 		}
 
-		saveFile := filepath.Join(c.AttachmentsDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, filepath.Base(a.Filename)))
+		_ = os.MkdirAll(c.AttachmentDir, 0766)
+		saveFile := filepath.Join(c.AttachmentDir, fmt.Sprintf("%s.a%d.%s", md5str(eml), i, filepath.Base(a.Filename)))
 		err = os.WriteFile(saveFile, a.Content, 0777)
 		if err != nil {
 			log.Printf("cannot extact image %s: %s", a.Filename, err)
