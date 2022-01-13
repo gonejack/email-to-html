@@ -1,4 +1,4 @@
-package cmd
+package email2html
 
 import (
 	"bytes"
@@ -16,38 +16,19 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/alecthomas/kong"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gonejack/email"
 	"github.com/gonejack/get"
 )
 
-type options struct {
-	MediaDir       string `default:"media" help:"Storage dir of images."`
-	AttachmentDir  string `default:"attachments" help:"Storage dir of attachments."`
-	DownloadRemote bool   `short:"d"  help:"Download remote images."`
-	Verbose        bool   `short:"v" help:"Verbose printing."`
-	About          bool   `help:"About."`
-
-	EML []string `arg:"" optional:"" help:"list of .eml files"`
-}
-
 type EmailToHTML struct {
-	options
+	Options
 }
 
 func (c *EmailToHTML) Run() (err error) {
-	kong.Parse(&c.options,
-		kong.Name("email-to-html"),
-		kong.Description("This command line converts .eml file to .html file"),
-		kong.UsageOnError(),
-	)
 	if c.About {
 		fmt.Println("Visit https://github.com/gonejack/email-to-html")
 		return
-	}
-	if len(c.EML) == 0 {
-		c.EML, _ = filepath.Glob("*.eml")
 	}
 	if len(c.EML) == 0 {
 		return errors.New("no .eml file given")

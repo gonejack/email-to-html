@@ -3,13 +3,15 @@ package main
 import (
 	"log"
 
-	"github.com/gonejack/email-to-html/cmd"
+	"github.com/gonejack/email-to-html/email2html"
 )
 
 func main() {
-	var c cmd.EmailToHTML
-
-	if e := c.Run(); e != nil {
-		log.Fatal(e)
+	cmd := email2html.EmailToHTML{
+		Options: email2html.MustParseOption(),
+	}
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
 	}
 }
