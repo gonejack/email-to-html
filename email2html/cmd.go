@@ -76,6 +76,14 @@ func (c *EmailToHTML) run() (err error) {
 		if !exist && mail.Headers.Get("Content-Language") != "" {
 			doc.Find("html").SetAttr("lang", mail.Headers.Get("Content-Language"))
 		}
+		if doc.Find("meta[charset]").Length() == 0 && doc.Find(`meta[http-equiv="Content-Type"]`).Length() == 0 {
+			ct, ps, _ := mime.ParseMediaType(mail.HTMLHeaders.Get("content-type"))
+			if ct == "text/html" && ps["charset"] != "" {
+				doc.Find("head").PrependHtml(fmt.Sprintf(`<meta charset="%s" />`, ps["charset"]))
+			} else {
+				doc.Find("head").PrependHtml(fmt.Sprintf(`<meta http-equiv="Content-Type" content="%s" />`, mail.HTMLHeaders.Get("content-type")))
+			}
+		}
 
 		htm, err := doc.Html()
 		if err != nil {
