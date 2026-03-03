@@ -46,12 +46,12 @@ func (c *EmailToHTML) run() (err error) {
 
 		attachments, err := c.extractAttachment(eml, mail)
 		if err != nil {
-			return fmt.Errorf("cannot extract attachments %s", err)
+			return fmt.Errorf("cannot extract attachments %w", err)
 		}
 
 		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(mail.HTML))
 		if err != nil {
-			return fmt.Errorf("cannot parse HTML: %s", err)
+			return fmt.Errorf("cannot parse HTML: %w", err)
 		}
 		doc = c.cleanDoc(doc)
 
@@ -87,7 +87,7 @@ func (c *EmailToHTML) run() (err error) {
 
 		htm, err := doc.Html()
 		if err != nil {
-			return fmt.Errorf("cannot generate body: %s", err)
+			return fmt.Errorf("cannot generate body: %w", err)
 		}
 
 		filename := strings.TrimSuffix(eml, filepath.Ext(eml)) + ".html"
@@ -102,12 +102,12 @@ func (c *EmailToHTML) run() (err error) {
 func (c *EmailToHTML) openEmail(eml string) (*email.Email, error) {
 	file, err := os.Open(eml)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file: %s", err)
+		return nil, fmt.Errorf("cannot open file: %w", err)
 	}
 	defer file.Close()
 	mail, err := email.NewEmailFromReader(file)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse email: %s", err)
+		return nil, fmt.Errorf("cannot parse email: %w", err)
 	}
 	return mail, nil
 }
